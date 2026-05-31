@@ -1,0 +1,25 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  background: #0a0a0c;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: 'Courier New', monospace;
+  user-select: none;
+  overflow: hidden;
+}
+#wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+canvas {
+  display: block;
+  border: 1px solid #2e2416;
+  border-radius: 6px;
+}
