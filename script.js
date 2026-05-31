@@ -1,5 +1,6 @@
 "use strict";
 
+// ─── Canvas və Sabitlər ───────────────────────────────────────
 const canvas = document.getElementById("c");
 const ctx    = canvas.getContext("2d");
 
@@ -9,8 +10,11 @@ const TS = 20;
 const COLS = Math.floor(W / TS); 
 const ROWS = Math.floor(H / TS); 
 
+const LS_KEY = "dungeon_escape_hs";
+
+// ─── Oyun Dəyişənləri ─────────────────────────────────────────
 let player, enemies, chests, particles;
-let gameState  = "playing";
+let gameState  = "idle"; // Başlanğıcda idle vəziyyəti
 let keys       = {};
 let doorOpen   = false;
 let gold       = 0;
@@ -28,6 +32,7 @@ const WALL_DEFS = [
   [8, 12, 4, 1], [15, 7, 1, 4], [19, 12, 1, 3]
 ];
 
+// ─── Köməkçi Funksiyalar ─────────────────────────────────────
 function buildWallMap() {
   wallMap = Array.from({ length: ROWS }, () => new Array(COLS).fill(false));
   for (const [x, y, w, h] of WALL_DEFS) {
@@ -59,31 +64,47 @@ function updateHUD() {
   document.getElementById("hp-num").textContent = Math.max(0, Math.floor(player.hp));
   const pct = Math.max(0, player.hp / player.maxHp) * 100;
   const bar = document.getElementById("hp-bar");
-  bar.style.width = pct + "%";
-  bar.style.background = pct > 50 ? "#4caf50" : pct > 25 ? "#ff9800" : "#f44336";
+  if (bar) {
+    bar.style.width = pct + "%";
+    bar.style.background = pct > 50 ? "#4caf50" : pct > 25 ? "#ff9800" : "#f44336";
+  }
 
   document.getElementById("gold-num").textContent  = gold;
   document.getElementById("enemy-num").textContent = aliveCount;
 
   const ds = document.getElementById("door-st");
-  ds.textContent  = doorOpen ? "Open!" : "Locked";
-  ds.style.color  = doorOpen ? "#81c784" : "#e57373";
+  if (ds) {
+    ds.textContent  = doorOpen ? "Open!" : "Locked";
+    ds.style.color  = doorOpen ? "#81c784" : "#e57373";
+  }
+
+  // High score hissəsi (əgər html-də varsa)
+  const hiHud = document.getElementById("hi-hud");
+  if (hiHud) hiHud.textContent = localStorage.getItem(LS_KEY) || 0;
 }
 
 function showMsg(text) {
   const el = document.getElementById("msg-bar");
+  if (!el) return;
   el.textContent = text;
   clearTimeout(msgTimer);
   msgTimer = setTimeout(() => { el.textContent = ""; }, 2500);
 }
 
-function init() {
+// ─── Oyunu Başlatma Funksiyası ───────────────────────────────
+function startGame() {
+  const screenEl = document.getElementById("screen");
+  if (screenEl) screenEl.style.display = "none";
+  
   buildWallMap();
-  gold = 0;
-  score = 0;
-  gameState = "playing";
-  particles = [];
-  doorOpen = false;
+
+  keys       = {};
+  gold       = 0;
+  score      = 0;
+  gameState  = "playing";
+  attackAnim = 0;
+  particles  = [];
+  doorOpen   = false;
 
   player = {
     x: 2 * TS, y: 2 * TS, size: 18, hp: 100, maxHp: 100, speed: 2.8, facing: 1, hitTimer: 0, attackCooldown: 0
@@ -104,18 +125,22 @@ function init() {
   ];
 
   updateHUD();
+  lastTime = performance.now();
   requestAnimationFrame(loop);
 }
 
+// ─── Oyun Dövrü (Loop) ────────────────────────────────────────
 function loop(ts) {
+  if (gameState !== "playing") return;
   const dt = Math.min((ts - lastTime) / 16.67, 3);
   lastTime = ts;
-  if (gameState !== "playing") return;
+  
   update(dt);
   draw();
   requestAnimationFrame(loop);
 }
 
+// ─── Məntiqi Yenilənmələr ─────────────────────────────────────
 function update(dt) {
   let dx = 0, dy = 0;
   if (keys["w"] || keys["arrowup"])    dy -= 1;
@@ -136,6 +161,12 @@ function update(dt) {
   if (player.hitTimer > 0)      player.hitTimer -= dt;
   if (player.attackCooldown > 0) player.attackCooldown -= dt;
   if (attackAnim > 0)            attackAnim -= dt * 2;
+
+  // Uduzma şərtinin yoxlanılması
+  if (player.hp <= 0) { 
+    endGame(false); 
+    return; 
+  }
 
   const aliveEnemies = enemies.filter(e => e.alive);
   for (const e of aliveEnemies) {
@@ -159,11 +190,6 @@ function update(dt) {
       player.hitTimer = 30;
       e.atkTimer      = 60;
       spawnParticles(player.x + 9, player.y + 9, "#f44336", 5);
-      if (player.hp <= 0) {
-        gameState = "lose";
-        alert("Game Over! Score: " + score);
-        return;
-      }
     }
   }
 
@@ -180,6 +206,7 @@ function update(dt) {
     }
   }
 
+  // Qazanma şərtinin yoxlanılması
   const doorX = (COLS - 4) * TS;
   const doorY = 1 * TS;
   if (aliveEnemies.length === 0) {
@@ -187,9 +214,7 @@ function update(dt) {
     const ddx = player.x - doorX;
     const ddy = player.y - doorY;
     if (Math.sqrt(ddx * ddx + ddy * ddy) < 30) {
-      gameState = "win";
-      score += Math.floor(player.hp);
-      alert("Victory! Final Score: " + score);
+      endGame(true);
       return;
     }
   }
@@ -205,8 +230,9 @@ function update(dt) {
   updateHUD();
 }
 
+// ─── Hücum Mexanikası ─────────────────────────────────────────
 function attack() {
-  if (player.attackCooldown > 0) return;
+  if (gameState !== "playing" || player.attackCooldown > 0) return;
   player.attackCooldown = 18;
   attackAnim = 8;
 
@@ -245,6 +271,7 @@ function spawnParticles(x, y, color, n) {
   }
 }
 
+// ─── Ekrana Çəkmə (Render) ────────────────────────────────────
 function draw() {
   ctx.clearRect(0, 0, W, H);
   for (let r = 0; r < ROWS; r++) {
@@ -315,61 +342,19 @@ function draw() {
   ctx.globalAlpha = 1;
 }
 
-document.addEventListener("keydown", e => {
-  keys[e.key.toLowerCase()] = true;
-  if (e.key === " ") attack();
-});
-document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
-
-// ... (Yuxarıdakı sabit dəyişənlər eynidir)
-let gameState  = "idle"; // idle olaraq dəyişdirildi
-// ...
-
-function startGame() {
-  document.getElementById("screen").style.display = "none";
-  buildWallMap();
-
-  keys       = {};
-  gold       = 0;
-  score      = 0;
-  gameState  = "playing";
-  attackAnim = 0;
-  particles  = [];
-  doorOpen   = false;
-
-  player = {
-    x: 2 * TS, y: 2 * TS, size: 18, hp: 100, maxHp: 100, speed: 2.8, facing: 1, hitTimer: 0, attackCooldown: 0
-  };
-
-  enemies = [
-    { x: 22 * TS, y: 2  * TS, size: 16, hp: 30, maxHp: 30, speed: 1.1, hitTimer: 0, atkTimer: 0, alive: true },
-    { x: 18 * TS, y: 10 * TS, size: 16, hp: 30, maxHp: 30, speed: 1.0, hitTimer: 0, atkTimer: 0, alive: true },
-    { x: 5  * TS, y: 12 * TS, size: 16, hp: 30, maxHp: 30, speed: 0.9, hitTimer: 0, atkTimer: 0, alive: true },
-    { x: 12 * TS, y: 17 * TS, size: 16, hp: 30, maxHp: 30, speed: 1.2, hitTimer: 0, atkTimer: 0, alive: true },
-    { x: 25 * TS, y: 16 * TS, size: 16, hp: 30, maxHp: 30, speed: 0.85,hitTimer: 0, atkTimer: 0, alive: true }
-  ];
-
-  chests = [
-    { x: 3  * TS, y: 7  * TS, open: false, gold: 25 },
-    { x: 24 * TS, y: 7  * TS, open: false, gold: 30 },
-    { x: 14 * TS, y: 11 * TS, open: false, gold: 20 }
-  ];
-
-  updateHUD();
-  requestAnimationFrame(loop);
-}
-
-// update(dt) daxilindəki uduzma şərtini əvəzləyin:
-if (player.hp <= 0) { endGame(false); return; }
-
-// update(dt) daxilindəki qazanma şərtini əvəzləyin:
-if (Math.sqrt(ddx * ddx + ddy * ddy) < 30) { endGame(true); return; }
-
+// ─── Oyun Bitmə Paneli ────────────────────────────────────────
 function endGame(win) {
   gameState = "end";
   if (win) score += Math.floor(player.hp);
 
+  // High score mentiqi
+  const currentHi = parseInt(localStorage.getItem(LS_KEY) || "0", 10);
+  if (score > currentHi) {
+    localStorage.setItem(LS_KEY, score.toString());
+  }
+
   const scr = document.getElementById("screen");
+  if (!scr) return;
   scr.style.display = "flex";
 
   if (win) {
@@ -378,7 +363,8 @@ function endGame(win) {
       <p class="sub">You escaped the dungeon!</p>
       <p class="score-info">
         Gold: <b style="color:#d4af37">${gold}</b><br>
-        Score: <b style="color:#d4af37">${score}</b>
+        Score: <b style="color:#d4af37">${score}</b><br>
+        Best: <b style="color:#ffd700">${localStorage.getItem(LS_KEY)}</b>
       </p>
       <button class="btn" onclick="startGame()">▶ PLAY AGAIN</button>
     `;
@@ -388,10 +374,23 @@ function endGame(win) {
       <p class="sub">The dungeon claims another soul...</p>
       <p class="score-info">
         Score: <b style="color:#d4af37">${score}</b><br>
-        Gold: <b style="color:#d4af37">${gold}</b>
+        Gold: <b style="color:#d4af37">${gold}</b><br>
+        Best: <b style="color:#ffd700">${localStorage.getItem(LS_KEY)}</b>
       </p>
       <button class="btn" onclick="startGame()">↺ TRY AGAIN</button>
     `;
   }
 }
-// Ən aşağıdakı init() çağırışını silirik, çünki düymə vasitəsilə startGame() işə düşəcək.
+
+// ─── Event Listeners (Düymələr) ───────────────────────────────
+document.addEventListener("keydown", e => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === " ") attack();
+});
+document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+// İlk açılışda High Score-u HUD panelində göstərmək üçün çağırış
+document.addEventListener("DOMContentLoaded", () => {
+  const hiHud = document.getElementById("hi-hud");
+  if (hiHud) hiHud.textContent = localStorage.getItem(LS_KEY) || 0;
+});
