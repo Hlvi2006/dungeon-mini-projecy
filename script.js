@@ -9,10 +9,12 @@ const TS = 20;
 const COLS = Math.floor(W / TS); 
 const ROWS = Math.floor(H / TS); 
 
-let player;
-let keys     = {};
-let lastTime = 0;
-let wallMap  = [];
+let player, enemies, chests, particles;
+let keys       = {};
+let doorOpen   = false;
+let attackAnim = 0;
+let lastTime   = 0;
+let wallMap    = [];
 
 const WALL_DEFS = [
   [0, 0, COLS, 1], [0, ROWS - 1, COLS, 1], [0, 0, 1, ROWS], [COLS - 1, 0, 1, ROWS],
@@ -50,7 +52,27 @@ function rectBlocked(x, y, size) {
 
 function init() {
   buildWallMap();
-  player = { x: 2 * TS, y: 2 * TS, size: 18, speed: 2.8, facing: 1 };
+  particles = [];
+  doorOpen = false;
+
+  player = {
+    x: 2 * TS, y: 2 * TS, size: 18, hp: 100, maxHp: 100, speed: 2.8, facing: 1, hitTimer: 0, attackCooldown: 0
+  };
+
+  enemies = [
+    { x: 22 * TS, y: 2  * TS, size: 16, hp: 30, maxHp: 30, speed: 1.1, hitTimer: 0, atkTimer: 0, alive: true },
+    { x: 18 * TS, y: 10 * TS, size: 16, hp: 30, maxHp: 30, speed: 1.0, hitTimer: 0, atkTimer: 0, alive: true },
+    { x: 5  * TS, y: 12 * TS, size: 16, hp: 30, maxHp: 30, speed: 0.9, hitTimer: 0, atkTimer: 0, alive: true },
+    { x: 12 * TS, y: 17 * TS, size: 16, hp: 30, maxHp: 30, speed: 1.2, hitTimer: 0, atkTimer: 0, alive: true },
+    { x: 25 * TS, y: 16 * TS, size: 16, hp: 30, maxHp: 30, speed: 0.85,hitTimer: 0, atkTimer: 0, alive: true }
+  ];
+
+  chests = [
+    { x: 3  * TS, y: 7  * TS, open: false, gold: 25 },
+    { x: 24 * TS, y: 7  * TS, open: false, gold: 30 },
+    { x: 14 * TS, y: 11 * TS, open: false, gold: 20 }
+  ];
+
   requestAnimationFrame(loop);
 }
 
@@ -78,6 +100,95 @@ function update(dt) {
 
   if (dx > 0) player.facing = 1;
   else if (dx < 0) player.facing = -1;
+
+  if (player.hitTimer > 0)      player.hitTimer -= dt;
+  if (player.attackCooldown > 0) player.attackCooldown -= dt;
+  if (attackAnim > 0)            attackAnim -= dt * 2;
+
+  const aliveEnemies = enemies.filter(e => e.alive);
+  for (const e of aliveEnemies) {
+    const edx  = player.x - e.x;
+    const edy  = player.y - e.y;
+    const dist = Math.sqrt(edx * edx + edy * edy);
+
+    if (dist < 220) {
+      const len = Math.max(dist, 0.1);
+      const mvx = (edx / len) * e.speed * dt;
+      const mvy = (edy / len) * e.speed * dt;
+      if (!rectBlocked(e.x + mvx, e.y, e.size)) e.x += mvx;
+      if (!rectBlocked(e.x, e.y + mvy, e.size)) e.y += mvy;
+    }
+
+    if (e.hitTimer > 0) e.hitTimer -= dt;
+    if (e.atkTimer > 0) e.atkTimer -= dt;
+
+    if (dist < 26 && e.atkTimer <= 0 && player.hitTimer <= 0) {
+      player.hp     -= 5;
+      player.hitTimer = 30;
+      e.atkTimer      = 60;
+      spawnParticles(player.x + 9, player.y + 9, "#f44336", 5);
+    }
+  }
+
+  for (const ch of chests) {
+    if (ch.open) continue;
+    const dx2 = player.x - ch.x;
+    const dy2 = player.y - ch.y;
+    if (Math.sqrt(dx2 * dx2 + dy2 * dy2) < 26) {
+      ch.open  = true;
+      spawnParticles(ch.x + 10, ch.y + 10, "#ffd700", 8);
+    }
+  }
+
+  if (aliveEnemies.length === 0) {
+    doorOpen = true;
+  }
+
+  for (const p of particles) {
+    p.x    += p.vx * dt;
+    p.y    += p.vy * dt;
+    p.life -= dt;
+    p.vy   += 0.15 * dt;
+  }
+  particles = particles.filter(p => p.life > 0);
+}
+
+function attack() {
+  if (player.attackCooldown > 0) return;
+  player.attackCooldown = 18;
+  attackAnim = 8;
+
+  const px = player.x + player.size / 2;
+  const py = player.y + player.size / 2;
+
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    const ex   = e.x + e.size / 2;
+    const ey   = e.y + e.size / 2;
+    const dist = Math.sqrt((px - ex) ** 2 + (py - ey) ** 2);
+    if (dist < 48) {
+      e.hp -= 10;
+      e.hitTimer = 8;
+      spawnParticles(ex, ey, "#ff6b35", 6);
+      if (e.hp <= 0) {
+        e.alive = false;
+        spawnParticles(ex, ey, "#ffd700", 10);
+      }
+    }
+  }
+}
+
+function spawnParticles(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    particles.push({
+      x, y,
+      vx:    Math.cos(a) * 2.5 * (Math.random() + 0.5),
+      vy:    Math.sin(a) * 2.5 * (Math.random() + 0.5),
+      life:  18 + Math.random() * 18,
+      color,
+    });
+  }
 }
 
 function draw() {
@@ -94,17 +205,66 @@ function draw() {
       }
     }
   }
+
+  const doorX = (COLS - 4) * TS;
+  const doorY = 1 * TS;
+  if (doorOpen) {
+    ctx.fillStyle = "#1b5e20";
+    ctx.fillRect(doorX, doorY, TS * 2, TS * 2);
+  } else {
+    ctx.fillStyle = "#3e2a1a";
+    ctx.fillRect(doorX, doorY, TS * 2, TS * 2);
+  }
+
+  for (const ch of chests) {
+    ctx.fillStyle = ch.open ? "#3a2208" : "#6d4c19";
+    ctx.fillRect(ch.x, ch.y, 20, 16);
+  }
+
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    ctx.fillStyle = e.hitTimer > 0 ? "#ff5252" : "#7f0000";
+    ctx.beginPath();
+    ctx.arc(e.x + e.size/2, e.y + e.size/2, e.size / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.save();
   ctx.translate(player.x + player.size / 2, player.y + player.size / 2);
+  if (player.hitTimer > 0) ctx.globalAlpha = 0.5;
   ctx.scale(player.facing, 1);
   ctx.font = "14px serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText("🧙", 0, 1);
+
+  if (attackAnim > 0) {
+    ctx.save();
+    ctx.rotate(-attackAnim * 0.4 * player.facing);
+    ctx.strokeStyle = "#ffd700";
+    ctx.lineWidth   = 3;
+    ctx.beginPath();
+    ctx.moveTo(4, -4);
+    ctx.lineTo(24, -20);
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.restore();
+
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / 28);
+    ctx.fillStyle   = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
 }
 
-document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+document.addEventListener("keydown", e => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === " ") attack();
+});
 document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
 init();
