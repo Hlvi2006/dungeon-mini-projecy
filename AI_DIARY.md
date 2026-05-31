@@ -1,51 +1,76 @@
 # AI Diary
 
-## Project: Dungeon Escape
-
-### Date: 2026-05-30
+## Entry 1 - Project Planning
 
 ### AI Tool Used
 - ChatGPT
-- Cloud
 
-### How AI Was Used
+### Purpose
+Used ChatGPT during the initial planning stage.
 
-I used AI as a planning and brainstorming assistant during the development of this project.
+### Outcome
+Defined the game concept, gameplay objectives, entities, and overall project requirements.
 
-AI helped me with:
+---
 
-- Generating game ideas
-- Defining the game concept
-- Planning the game mechanics
-- Identifying game entities
-- Designing the combat system
-- Creating the project structure
-- Writing the README documentation
-- Organizing the development tasks
+## Entry 2 - Game Implementation
 
-### Key Decisions
+### AI Tool Used
+- Claude
 
-The game is a simple dungeon crawler where:
+### Purpose
+Used Claude to assist with the implementation of the game.
 
-- The player moves using WASD.
-- The player attacks with the Space key.
-- Enemies reduce the player's HP when they get close.
-- Chests provide rewards.
-- The exit door unlocks after all enemies are defeated.
-- Entering the door displays a Winner screen.
+### Outcome
+Most of the game code was written with assistance from Claude, including gameplay systems, entity interactions, and core mechanics.
 
-### Personal Contribution
+---
 
-All implementation, coding, debugging, testing, and final design decisions were completed and reviewed by me.
+## Entry 3 - Commit Organization
 
-### Notes
+### AI Tool Used
+- Gemini
 
-AI was used as a learning and planning assistant, not as a replacement for understanding the code.
+### Purpose
+Used Gemini to help organize the development process.
 
-## 2026-05-31
+### Outcome
+The project work was divided into logical stages and commits, making the development history easier to track and review.
 
-Used ChatGPT to:
+---
 
-- Discuss collision detection
-- Improve enemy attack logic
-- Review game loop structure
+## Entry 4 - Debugging and Problem Solving
+
+### AI Tool Used
+- ChatGPT
+
+### Purpose
+Used ChatGPT when specific development issues appeared.
+
+### Outcome
+Discussed JavaScript errors, collision behavior, game logic issues, and possible solutions during development.
+
+---
+
+## Entry 5 - Documentation
+
+### AI Tool Used
+- ChatGPT
+
+### Purpose
+Used ChatGPT to help prepare the final documentation.
+
+### Outcome
+Reviewed and improved the README structure, AI Diary content, and project presentation.
+
+---
+
+## Summary
+
+The game implementation was primarily developed with assistance from Claude.
+
+Gemini was used to help structure the development process and organize the project into logical commits.
+
+ChatGPT was used for planning, debugging discussions, documentation, and project review.
+
+All final decisions, testing, integration, and project submission were completed by me.
