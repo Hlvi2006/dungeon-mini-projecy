@@ -321,4 +321,77 @@ document.addEventListener("keydown", e => {
 });
 document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
-init();
+// ... (Yuxarıdakı sabit dəyişənlər eynidir)
+let gameState  = "idle"; // idle olaraq dəyişdirildi
+// ...
+
+function startGame() {
+  document.getElementById("screen").style.display = "none";
+  buildWallMap();
+
+  keys       = {};
+  gold       = 0;
+  score      = 0;
+  gameState  = "playing";
+  attackAnim = 0;
+  particles  = [];
+  doorOpen   = false;
+
+  player = {
+    x: 2 * TS, y: 2 * TS, size: 18, hp: 100, maxHp: 100, speed: 2.8, facing: 1, hitTimer: 0, attackCooldown: 0
+  };
+
+  enemies = [
+    { x: 22 * TS, y: 2  * TS, size: 16, hp: 30, maxHp: 30, speed: 1.1, hitTimer: 0, atkTimer: 0, alive: true },
+    { x: 18 * TS, y: 10 * TS, size: 16, hp: 30, maxHp: 30, speed: 1.0, hitTimer: 0, atkTimer: 0, alive: true },
+    { x: 5  * TS, y: 12 * TS, size: 16, hp: 30, maxHp: 30, speed: 0.9, hitTimer: 0, atkTimer: 0, alive: true },
+    { x: 12 * TS, y: 17 * TS, size: 16, hp: 30, maxHp: 30, speed: 1.2, hitTimer: 0, atkTimer: 0, alive: true },
+    { x: 25 * TS, y: 16 * TS, size: 16, hp: 30, maxHp: 30, speed: 0.85,hitTimer: 0, atkTimer: 0, alive: true }
+  ];
+
+  chests = [
+    { x: 3  * TS, y: 7  * TS, open: false, gold: 25 },
+    { x: 24 * TS, y: 7  * TS, open: false, gold: 30 },
+    { x: 14 * TS, y: 11 * TS, open: false, gold: 20 }
+  ];
+
+  updateHUD();
+  requestAnimationFrame(loop);
+}
+
+// update(dt) daxilindəki uduzma şərtini əvəzləyin:
+if (player.hp <= 0) { endGame(false); return; }
+
+// update(dt) daxilindəki qazanma şərtini əvəzləyin:
+if (Math.sqrt(ddx * ddx + ddy * ddy) < 30) { endGame(true); return; }
+
+function endGame(win) {
+  gameState = "end";
+  if (win) score += Math.floor(player.hp);
+
+  const scr = document.getElementById("screen");
+  scr.style.display = "flex";
+
+  if (win) {
+    scr.innerHTML = `
+      <h1 style="color:#d4af37">🏆 VICTORY!</h1>
+      <p class="sub">You escaped the dungeon!</p>
+      <p class="score-info">
+        Gold: <b style="color:#d4af37">${gold}</b><br>
+        Score: <b style="color:#d4af37">${score}</b>
+      </p>
+      <button class="btn" onclick="startGame()">▶ PLAY AGAIN</button>
+    `;
+  } else {
+    scr.innerHTML = `
+      <h1 style="color:#e57373">💀 DEFEATED</h1>
+      <p class="sub">The dungeon claims another soul...</p>
+      <p class="score-info">
+        Score: <b style="color:#d4af37">${score}</b><br>
+        Gold: <b style="color:#d4af37">${gold}</b>
+      </p>
+      <button class="btn" onclick="startGame()">↺ TRY AGAIN</button>
+    `;
+  }
+}
+// Ən aşağıdakı init() çağırışını silirik, çünki düymə vasitəsilə startGame() işə düşəcək.
