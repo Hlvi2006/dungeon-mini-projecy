@@ -133,3 +133,17 @@ canvas {
   background: #d4af37;
   color: #0a0a0c;
 }
+#controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+.ctrl {
+  font-size: 11px;
+  font-family: 'Courier New', monospace;
+  color: #4a3a22;
+  border: 1px solid #1e1a10;
+  background: #0e0c08;
+  padding: 4px 12px;
+  border-radius: 3px;
+}
