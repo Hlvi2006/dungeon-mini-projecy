@@ -147,3 +147,7 @@ canvas {
   padding: 4px 12px;
   border-radius: 3px;
 }
+.hi-score {
+  font-size: 12px;
+  color: #5a4a2e;
+}
