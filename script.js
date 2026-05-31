@@ -10,10 +10,14 @@ const COLS = Math.floor(W / TS);
 const ROWS = Math.floor(H / TS); 
 
 let player, enemies, chests, particles;
+let gameState  = "playing";
 let keys       = {};
 let doorOpen   = false;
+let gold       = 0;
+let score      = 0;
 let attackAnim = 0;
 let lastTime   = 0;
+let msgTimer;
 let wallMap    = [];
 
 const WALL_DEFS = [
@@ -50,8 +54,34 @@ function rectBlocked(x, y, size) {
   );
 }
 
+function updateHUD() {
+  const aliveCount = enemies.filter(e => e.alive).length;
+  document.getElementById("hp-num").textContent = Math.max(0, Math.floor(player.hp));
+  const pct = Math.max(0, player.hp / player.maxHp) * 100;
+  const bar = document.getElementById("hp-bar");
+  bar.style.width = pct + "%";
+  bar.style.background = pct > 50 ? "#4caf50" : pct > 25 ? "#ff9800" : "#f44336";
+
+  document.getElementById("gold-num").textContent  = gold;
+  document.getElementById("enemy-num").textContent = aliveCount;
+
+  const ds = document.getElementById("door-st");
+  ds.textContent  = doorOpen ? "Open!" : "Locked";
+  ds.style.color  = doorOpen ? "#81c784" : "#e57373";
+}
+
+function showMsg(text) {
+  const el = document.getElementById("msg-bar");
+  el.textContent = text;
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(() => { el.textContent = ""; }, 2500);
+}
+
 function init() {
   buildWallMap();
+  gold = 0;
+  score = 0;
+  gameState = "playing";
   particles = [];
   doorOpen = false;
 
@@ -73,12 +103,14 @@ function init() {
     { x: 14 * TS, y: 11 * TS, open: false, gold: 20 }
   ];
 
+  updateHUD();
   requestAnimationFrame(loop);
 }
 
 function loop(ts) {
   const dt = Math.min((ts - lastTime) / 16.67, 3);
   lastTime = ts;
+  if (gameState !== "playing") return;
   update(dt);
   draw();
   requestAnimationFrame(loop);
@@ -127,6 +159,11 @@ function update(dt) {
       player.hitTimer = 30;
       e.atkTimer      = 60;
       spawnParticles(player.x + 9, player.y + 9, "#f44336", 5);
+      if (player.hp <= 0) {
+        gameState = "lose";
+        alert("Game Over! Score: " + score);
+        return;
+      }
     }
   }
 
@@ -136,12 +173,25 @@ function update(dt) {
     const dy2 = player.y - ch.y;
     if (Math.sqrt(dx2 * dx2 + dy2 * dy2) < 26) {
       ch.open  = true;
+      gold    += ch.gold;
+      score   += ch.gold;
       spawnParticles(ch.x + 10, ch.y + 10, "#ffd700", 8);
+      showMsg("Chest opened! +" + ch.gold + " gold");
     }
   }
 
+  const doorX = (COLS - 4) * TS;
+  const doorY = 1 * TS;
   if (aliveEnemies.length === 0) {
     doorOpen = true;
+    const ddx = player.x - doorX;
+    const ddy = player.y - doorY;
+    if (Math.sqrt(ddx * ddx + ddy * ddy) < 30) {
+      gameState = "win";
+      score += Math.floor(player.hp);
+      alert("Victory! Final Score: " + score);
+      return;
+    }
   }
 
   for (const p of particles) {
@@ -151,6 +201,8 @@ function update(dt) {
     p.vy   += 0.15 * dt;
   }
   particles = particles.filter(p => p.life > 0);
+
+  updateHUD();
 }
 
 function attack() {
@@ -172,7 +224,9 @@ function attack() {
       spawnParticles(ex, ey, "#ff6b35", 6);
       if (e.hp <= 0) {
         e.alive = false;
+        score  += 50;
         spawnParticles(ex, ey, "#ffd700", 10);
+        showMsg("Enemy defeated! +50 pts");
       }
     }
   }

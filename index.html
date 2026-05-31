@@ -8,9 +8,30 @@
 </head>
 <body>
 <div id="wrapper">
+  <div id="hud">
+    <div class="hud-item">
+      <span class="hud-label">HP</span>
+      <div id="hp-bar-wrap"><div id="hp-bar"></div></div>
+      <span class="hud-val" id="hp-num">100</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Gold</span>
+      <span class="hud-val" id="gold-num">0</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Enemies</span>
+      <span class="hud-val" id="enemy-num">5</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Door</span>
+      <span class="hud-val" id="door-st">Locked</span>
+    </div>
+  </div>
+
   <div id="canvas-wrap">
     <canvas id="c" width="560" height="420"></canvas>
   </div>
+  <div id="msg-bar"></div>
 </div>
 <script src="script.js"></script>
 </body>
